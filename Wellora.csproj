@@ -1,0 +1,61 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Views\Admin\**" />
+    <Compile Remove="Views\Doctor\**" />
+    <Compile Remove="Views\Patient\**" />
+    <Content Remove="Views\Admin\**" />
+    <Content Remove="Views\Doctor\**" />
+    <Content Remove="Views\Patient\**" />
+    <EmbeddedResource Remove="Views\Admin\**" />
+    <EmbeddedResource Remove="Views\Doctor\**" />
+    <EmbeddedResource Remove="Views\Patient\**" />
+    <None Remove="Views\Admin\**" />
+    <None Remove="Views\Doctor\**" />
+    <None Remove="Views\Patient\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Areas\Admin\Views\Admin\" />
+    <Folder Include="Areas\Admin\Views\Admin\" />
+    <Folder Include="Areas\Doctor\ViewModels\PatientGetReported\" />
+    <Folder Include="Areas\Doctor\ViewModels\PatientGetDiagnose\" />
+    <Folder Include="Areas\Patient\Views\PatientTransaction\" />
+    <Folder Include="wwwroot\images\Error\" />
+    <Folder Include="wwwroot\images\Patient\AIChat\" />
+    <Folder Include="wwwroot\js\admin\" />
+    <Folder Include="wwwroot\js\account\" />
+    <Folder Include="wwwroot\js\patient\" />
+  </ItemGroup>
+
+  <ItemGroup>
+  <PackageReference Include="BCrypt.Net-Core" Version="1.6.0" />
+  <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.0" />
+
+  <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">
+    <PrivateAssets>all</PrivateAssets>
+    <IncludeAssets>
+      runtime; build; native; contentfiles; analyzers; buildtransitive
+    </IncludeAssets>
+  </PackageReference>
+
+  <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.0" />
+
+  <PackageReference Include="MySql.Data" Version="9.7.0" />
+
+  <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />
+</ItemGroup>
+
+  <ItemGroup>
+    <Content Update="Areas\Doctor\Views\DoctorProfile\DoctorProfile.cshtml">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>
