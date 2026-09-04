@@ -1,0 +1,207 @@
+﻿using BCrypt.Net;
+using Org.BouncyCastle.Crypto.Generators;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using Wellora.Models;
+using Wellora.Data;
+using Wellora.Areas.Doctor.Models;
+using DoctorEntity = Wellora.Areas.Doctor.Models.Doctor;
+using Wellora.Areas.Doctor.ViewModels.DoctorAccount;
+
+
+
+
+
+namespace Wellora.Areas.Doctor.Controllers
+{
+    [Area("Doctor")]
+    public class DoctorAccountController : Controller
+    {
+
+        private readonly ApplicationDbContext _context;
+
+        public DoctorAccountController(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        [HttpGet]
+        public IActionResult AccountBanned(string role = "doctor")
+        {
+            ViewBag.Role = role;
+            return View();
+        }
+
+        [HttpGet]
+        public IActionResult DoctorRegistration()
+        {
+            return View();
+        }
+
+        //Registration
+        [HttpPost]
+        public async Task<IActionResult> DoctorRegistration(DoctorRegistrationViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                // Check if email already exists
+                if (_context.Users.Any(u => u.Email == model.Email))
+                {
+                    ModelState.AddModelError("Email", "This email is already registered.");
+                    return View(model);
+                }
+
+                // Check if username already exists
+                if (_context.Users.Any(u => u.Username == model.Username))
+                {
+                    ModelState.AddModelError("Username", "This username is already taken.");
+                    return View(model);
+                }
+
+                // Create User
+                var user = new User
+                {
+                    FirstName = model.FirstName,
+                    LastName = model.LastName,
+                    Email = model.Email,
+                    Username = model.Username, 
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.Password),
+                    Role = "doctor",
+                    Status = "active",
+                    AccountSituation = "no_banned",
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync(); // commit so user_id is generated
+
+                // Create Doctor linked to User
+                var Doctor = new DoctorEntity
+                {
+                    UserId = user.UserId, // foreign key
+                    FullName = $"{model.FirstName} {model.LastName}",
+                    DateOfBirth = new DateOnly(1900, 1, 1), 
+                    Gender = "other", 
+                    ConsultationFee = 0.00m, 
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+
+                };
+
+                _context.Doctors.Add(Doctor);
+                await _context.SaveChangesAsync();
+
+                return RedirectToAction("DoctorLogin", "DoctorAccount", new { area = "Doctor" });
+            }
+
+            return View(model);
+        }
+
+
+
+
+        //for logging out
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DoctorLogout()
+        {
+            await HttpContext.SignOutAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme
+            );
+
+            return RedirectToAction(
+                "DoctorLogin",
+                "DoctorAccount",
+                new { area = "Doctor" }
+            );
+        }
+
+        //for logging in
+        public IActionResult DoctorLogin()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DoctorLogin(DoctorLoginViewModel model)
+        {
+            if (!ModelState.IsValid)
+                return View(model);
+
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.Email == model.LoginIdentifier || u.Username == model.LoginIdentifier);
+
+            if (user == null || !BCrypt.Net.BCrypt.Verify(model.Password, user.PasswordHash))
+            {
+                ModelState.AddModelError("", "Invalid login credentials.");
+                return View(model);
+            }
+
+            // Verify account situation
+            if (user.AccountSituation == "banned")
+            {
+                ViewBag.Role = user.Role;
+                return View("AccountBanned");
+            }
+
+            // Build claims
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
+                new Claim(ClaimTypes.Name, user.Username ?? user.Email),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Role, user.Role)
+            };
+
+            // Get doctor profile
+            var doctor = await _context.Doctors
+                .SingleOrDefaultAsync(d => d.UserId == user.UserId);
+
+            if (doctor == null)
+            {
+                ModelState.AddModelError("", "Doctor profile not found.");
+                return View(model);
+            }
+
+            // Add DoctorId claim
+            claims.Add(
+                new Claim("CurrentDoctorId", doctor.DoctorId.ToString())
+            );
+
+            claims.Add(
+                new Claim("ProfilePicturePath", doctor.ProfilePhoto ?? "")
+            );
+
+            var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+
+            // Sign in
+            await HttpContext.SignInAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                new ClaimsPrincipal(claimsIdentity),
+                new AuthenticationProperties
+                {
+                    IsPersistent = true, // keep logged in across browser sessions
+                    ExpiresUtc = DateTime.UtcNow.AddHours(2)
+                });
+
+            // Redirect to dashboard
+            return RedirectToAction("DoctorDashboard", "DoctorDashboard", new { area = "Doctor" });
+        }
+
+        [HttpGet]
+        public IActionResult CheckUsername(string username)
+        {
+            bool exists = _context.Users.Any(u => u.Username == username);
+            return Json(new { available = !exists });
+        }
+
+
+        public IActionResult AIChat()
+        { return View(); }
+    }
+}

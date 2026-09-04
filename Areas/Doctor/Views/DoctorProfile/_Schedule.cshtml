@@ -1,0 +1,495 @@
+﻿@model Wellora.Areas.Doctor.ViewModels.DoctorProfile.DoctorScheduleViewModel
+
+<link rel="stylesheet"
+      href="~/css/doctor/profile/doctor_schedule.css"
+      asp-append-version="true" />
+
+@{
+    var days = new[]
+    {
+        new { Id = 1, Name = "Monday" },
+        new { Id = 2, Name = "Tuesday" },
+        new { Id = 3, Name = "Wednesday" },
+        new { Id = 4, Name = "Thursday" },
+        new { Id = 5, Name = "Friday" },
+        new { Id = 6, Name = "Saturday" },
+        new { Id = 7, Name = "Sunday" }
+    };
+
+    var durations = new[] { 15, 30, 45, 60, 75, 90 };
+    var buffers = new[] { 0, 5, 10, 15, 20, 30 };
+}
+
+<div class="container-fluid doctor-schedule-page py-4">
+
+    <!-- =========================================================
+         PAGE HEADER
+    ========================================================== -->
+
+    <div class="doctor-schedule-header mb-4">
+
+        <div>
+            <h2 class="mb-1">
+                Doctor Schedule
+            </h2>
+
+            <p class="doctor-schedule-description mb-0">
+                Set your weekly working hours, breaks, patient duration
+                and daily capacity.
+            </p>
+        </div>
+
+        <div class="schedule-change-counter">
+
+            <span class="change-limit-label">
+                <i class="bi bi-calendar"></i>
+            </span>
+
+            
+
+        </div>
+
+    </div>
+
+
+    <!-- =========================================================
+         SCHEDULE FORM
+    ========================================================== -->
+
+    <form asp-area="Doctor"
+          asp-controller="DoctorProfile"
+          asp-action="UpdateSchedule"
+          method="post"
+          id="doctorScheduleForm">
+
+        @Html.AntiForgeryToken()
+
+        <div class="card doctor-schedule-card">
+
+            <div class="card-body p-0">
+
+                <div class="table-responsive">
+
+                    <table class="table doctor-schedule-table mb-0">
+
+                        <thead>
+                            <tr>
+                                <th>Day</th>
+                                <th>Start Time</th>
+                                <th>End Time</th>
+                                <th>Break Start</th>
+                                <th>Break End</th>
+                                <th>Patient Duration</th>
+                                <th>Buffer Time</th>
+                                <th>Maximum Patients</th>
+                                <th>On / Off</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            @for (int i = 0; i < days.Length; i++)
+                            {
+                                var day = days[i];
+
+                                var existingSchedule =
+                                    Model?.ScheduleRows?
+                                        .FirstOrDefault(s => s.DayOfWeek == day.Id);
+
+                                var existingBreak =
+                                    Model?.Breaks?
+                                        .FirstOrDefault(b => b.DayOfWeek == day.Id);
+
+                                bool hasSchedule = existingSchedule != null;
+
+                                /*
+                                 * Existing schedule:
+                                 *     IsActive/value doesn't control
+                                 *     database presence.
+                                 *
+                                 * Existing record = On.
+                                 *
+                                 * No record = -.
+                                 */
+
+                                bool isOn = hasSchedule;
+
+                                string rowClass = isOn
+                                    ? "schedule-row-on"
+                                    : "schedule-row-off";
+
+                                <tr class="@rowClass"
+                                    data-day="@day.Id"
+                                    data-schedule-enabled="@isOn.ToString().ToLower()">
+
+                                    <!-- =================================================
+                                         DAY
+                                    ================================================== -->
+
+                                    <td>
+
+                                        <div class="day-name">
+                                            @day.Name
+                                        </div>
+
+                                        <input type="hidden"
+                                               name="ScheduleRows[@i].DayOfWeek"
+                                               value="@day.Id" />
+
+                                        <input type="hidden"
+                                               name="Breaks[@i].DayOfWeek"
+                                               value="@day.Id" />
+
+                                    </td>
+
+
+                                    <!-- =================================================
+                                         START TIME
+                                    ================================================== -->
+
+                                    <td>
+
+                                        <select class="form-select schedule-input"
+                                                name="ScheduleRows[@i].StartTime">
+
+                                            <option value="">
+                                                -
+                                            </option>
+
+                                            @for (int hour = 0; hour < 24; hour++)
+                                            {
+                                                for (int minute = 0; minute < 60; minute += 15)
+                                                {
+                                                    var time =
+                                                        new TimeSpan(hour, minute, 0);
+
+                                                    var display =
+                                                        DateTime.Today
+                                                            .Add(time)
+                                                            .ToString("hh:mm tt");
+
+                                                    bool selected =
+                                                        hasSchedule &&
+                                                        existingSchedule!.StartTime == time;
+
+                                                    <option value="@time"
+                                                            selected="@(selected ? "selected" : null)">
+                                                        @display
+                                                    </option>
+                                                }
+                                            }
+
+                                        </select>
+
+                                    </td>
+
+
+                                    <!-- =================================================
+                                         END TIME
+                                    ================================================== -->
+
+                                    <td>
+
+                                        <select class="form-select schedule-input"
+                                                name="ScheduleRows[@i].EndTime">
+
+                                            <option value="">
+                                                -
+                                            </option>
+
+                                            @for (int hour = 0; hour < 24; hour++)
+                                            {
+                                                for (int minute = 0; minute < 60; minute += 15)
+                                                {
+                                                    var time =
+                                                        new TimeSpan(hour, minute, 0);
+
+                                                    var display =
+                                                        DateTime.Today
+                                                            .Add(time)
+                                                            .ToString("hh:mm tt");
+
+                                                    bool selected =
+                                                        hasSchedule &&
+                                                        existingSchedule!.EndTime == time;
+
+                                                    <option value="@time"
+                                                            selected="@(selected ? "selected" : null)">
+                                                        @display
+                                                    </option>
+                                                }
+                                            }
+
+                                        </select>
+
+                                    </td>
+
+
+                                    <!-- =================================================
+                                         BREAK START
+                                    ================================================== -->
+
+                                    <td>
+
+                                        <select class="form-select schedule-input break-input"
+                                                name="Breaks[@i].BreakStart">
+
+                                            <option value="">
+                                                -
+                                            </option>
+
+                                            @for (int hour = 0; hour < 24; hour++)
+                                            {
+                                                for (int minute = 0; minute < 60; minute += 15)
+                                                {
+                                                    var time =
+                                                        new TimeSpan(hour, minute, 0);
+
+                                                    var display =
+                                                        DateTime.Today
+                                                            .Add(time)
+                                                            .ToString("hh:mm tt");
+
+                                                    bool selected =
+                                                        existingBreak != null &&
+                                                        existingBreak.BreakStart == time;
+
+                                                    <option value="@time"
+                                                            selected="@(selected ? "selected" : null)">
+                                                        @display
+                                                    </option>
+                                                }
+                                            }
+
+                                        </select>
+
+                                    </td>
+
+
+                                    <!-- =================================================
+                                         BREAK END
+                                    ================================================== -->
+
+                                    <td>
+
+                                        <select class="form-select schedule-input break-input"
+                                                name="Breaks[@i].BreakEnd">
+
+                                            <option value="">
+                                                -
+                                            </option>
+
+                                            @for (int hour = 0; hour < 24; hour++)
+                                            {
+                                                for (int minute = 0; minute < 60; minute += 15)
+                                                {
+                                                    var time =
+                                                        new TimeSpan(hour, minute, 0);
+
+                                                    var display =
+                                                        DateTime.Today
+                                                            .Add(time)
+                                                            .ToString("hh:mm tt");
+
+                                                    bool selected =
+                                                        existingBreak != null &&
+                                                        existingBreak.BreakEnd == time;
+
+                                                    <option value="@time"
+                                                            selected="@(selected ? "selected" : null)">
+                                                        @display
+                                                    </option>
+                                                }
+                                            }
+
+                                        </select>
+
+                                    </td>
+
+
+                                    <!-- =================================================
+                                         PATIENT DURATION
+                                    ================================================== -->
+
+                                    <td>
+
+                                        <select class="form-select schedule-input"
+                                                name="ScheduleRows[@i].AppointmentDurationMin">
+
+                                            <option value="">
+                                                -
+                                            </option>
+
+                                            @foreach (var duration in durations)
+                                            {
+                                                bool selected =
+                                                    hasSchedule
+                                                        ? existingSchedule!.AppointmentDurationMin == duration
+                                                        : duration == 30;
+
+                                                string label =
+                                                    duration < 60
+                                                        ? $"{duration} minutes"
+                                                        : duration == 60
+                                                            ? "1 hour"
+                                                            : $"{duration / 60} hour {duration % 60} minutes";
+
+                                                <option value="@duration"
+                                                        selected="@(selected ? "selected" : null)">
+                                                    @label
+                                                </option>
+                                            }
+
+                                        </select>
+
+                                    </td>
+
+
+                                    <!-- =================================================
+                                         BUFFER TIME
+                                    ================================================== -->
+
+                                    <td>
+
+                                        <select class="form-select schedule-input"
+                                                name="ScheduleRows[@i].BufferTimeMin">
+
+                                            <option value="">
+                                                -
+                                            </option>
+
+                                            @foreach (var buffer in buffers)
+                                            {
+                                                bool selected =
+                                                    hasSchedule &&
+                                                    existingSchedule!.BufferTimeMin == buffer;
+
+                                                <option value="@buffer"
+                                                        selected="@(selected ? "selected" : null)">
+                                                    @buffer minutes
+                                                </option>
+                                            }
+
+                                        </select>
+
+                                    </td>
+
+
+                                    <!-- =================================================
+                                         MAXIMUM PATIENTS
+                                    ================================================== -->
+
+                                    <td>
+
+                                        <select class="form-select schedule-input"
+                                                name="ScheduleRows[@i].MaxPatientsPerDay">
+
+                                            <option value="">
+                                                -
+                                            </option>
+
+                                            @for (int patients = 1; patients <= 20; patients++)
+                                            {
+                                                bool selected =
+                                                    hasSchedule
+                                                        ? existingSchedule!.MaxPatientsPerDay == patients
+                                                        : patients == 1;
+
+                                                <option value="@patients"
+                                                        selected="@(selected ? "selected" : null)">
+                                                    @patients
+                                                </option>
+                                            }
+
+                                            @for (int patients = 25; patients <= 50; patients += 5)
+                                            {
+                                                bool selected =
+                                                    hasSchedule &&
+                                                    existingSchedule!.MaxPatientsPerDay == patients;
+
+                                                <option value="@patients"
+                                                        selected="@(selected ? "selected" : null)">
+                                                    @patients
+                                                </option>
+                                            }
+
+                                        </select>
+
+                                    </td>
+
+
+                                    <!-- =================================================
+                                         ON / OFF / -
+                                    ================================================== -->
+
+                                    <td>
+                                        <select class="form-select schedule-status"
+                                                name="ScheduleStatus[@i]"
+                                                data-day="@day.Id">
+
+                                            @if (isOn)
+                                            {
+                                                <option value="On" selected>On</option>
+                                                <option value="Off">Off</option>
+                                                <option value="">-</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="" selected>-</option>
+                                                <option value="On">On</option>
+                                                <option value="Off">Off</option>
+                                            }
+
+                                        </select>
+                                    </td>
+
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+
+            <!-- =========================================================
+                 FOOTER
+            ========================================================== -->
+
+            <div class="card-footer doctor-schedule-footer">
+
+                <div class="schedule-help">
+
+                    <span class="status-dot"></span>
+
+                    <span>
+                        Select <strong>On</strong> to save a working day.
+                        Select <strong>Off</strong> or <strong>-</strong>
+                        to leave that day unscheduled.
+                    </span>
+
+                </div>
+
+                <button type="submit"
+                        class="btn btn-primary save-schedule-btn">
+
+                    <i class="bi bi-calendar-check me-1"></i>
+                    Save Schedule
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </form>
+
+</div>
+
+
+<script src="~/js/doctor/profile/doctor_schedule.js"
+        asp-append-version="true"></script>
